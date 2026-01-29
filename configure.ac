@@ -17,8 +17,8 @@ AC_SUBST([VERSION_COMMIT_SHA], ["m4_esyscmd([git rev-parse HEAD | tr -d '\n'])"]
 
 
 # Checks for programs.
-AC_PROG_CXX
-AC_PROG_CC
+AC_PROG_CXX([clang++])
+AC_PROG_CC([clang])
 
 
 # Check for operating system
@@ -40,10 +40,10 @@ LDFLAGS+=" -lpthread"
 
 LIBGENERAL_REQUIRES_STR="libgeneral >= 75"
 LIBFRAGMENTZIP_REQUIRES_STR="libfragmentzip >= 67"
+LIBFWKEYFETCH_REQUIRES_STR="libfwkeyfetch >= 1"
 LIBIMG4TOOL_REQUIRES_STR="libimg4tool >= 202"
 LIBIMG3TOOL_REQUIRES_STR="libimg3tool >= 8"
 LIBIMG1TOOL_REQUIRES_STR="libimg1tool >= 12"
-LIBIPATCHER_REQUIRES_STR="libipatcher >= 89"
 LIBIRECOVERY_REQUIRES_STR="libirecovery-1.0 >= 1.0.0"
 LIBPATCHFINDER_REQUIRES_STR="libpatchfinder >= 153"
 LIBPLIST_REQUIRES_STR="libplist-2.0 >= 2.3.0"
@@ -52,9 +52,9 @@ OPENSSL_REQUIRES_STR="openssl"
 
 PKG_CHECK_MODULES(libgeneral, $LIBGENERAL_REQUIRES_STR)
 PKG_CHECK_MODULES(libfragmentzip, $LIBFRAGMENTZIP_REQUIRES_STR)
+PKG_CHECK_MODULES(libfwkeyfetch, $LIBFWKEYFETCH_REQUIRES_STR)
 PKG_CHECK_MODULES(libimg4tool, $LIBIMG4TOOL_REQUIRES_STR)
 PKG_CHECK_MODULES(libimg3tool, $LIBIMG3TOOL_REQUIRES_STR)
-PKG_CHECK_MODULES(libipatcher, $LIBIPATCHER_REQUIRES_STR)
 PKG_CHECK_MODULES(libirecovery, $LIBIRECOVERY_REQUIRES_STR)
 PKG_CHECK_MODULES(libpatchfinder, $LIBPATCHFINDER_REQUIRES_STR)
 PKG_CHECK_MODULES(libplist, $LIBPLIST_REQUIRES_STR)
@@ -64,9 +64,9 @@ PKG_CHECK_MODULES(libimg1tool, $LIBIMG1TOOL_REQUIRES_STR, have_img1tool=yes, hav
 
 AC_SUBST([libgeneral_requires], [$LIBGENERAL_REQUIRES_STR])
 AC_SUBST([libfragmentzip_requires], [$LIBFRAGMENTZIP_REQUIRES_STR])
+AC_SUBST([libfwkeyfetch_requires], [$LIBFWKEYFETCH_REQUIRES_STR])
 AC_SUBST([libimg3tool_requires], [$LIBIMG3TOOL_REQUIRES_STR])
 AC_SUBST([libimg4tool_requires], [$LIBIMG4TOOL_REQUIRES_STR])
-AC_SUBST([libipatcher_requires], [$LIBIPATCHER_REQUIRES_STR])
 AC_SUBST([libirecovery_requires], [$LIBIRECOVERY_REQUIRES_STR])
 AC_SUBST([libpatchfinder_requires], [$LIBPATCHFINDER_REQUIRES_STR])
 AC_SUBST([libplist_requires], [$LIBPLIST_REQUIRES_STR])
@@ -90,6 +90,22 @@ AC_ARG_WITH([img1tool],
             [do not build with img1tool @<:@default=yes@:>@])],
             [with_img1tool=no],
             [with_img1tool=yes])
+
+AC_ARG_WITH([ibootpatcher],
+            [AS_HELP_STRING([--without-ibootpatcher],
+            [build with ibootpatcher @<:@default=yes@:>@])],
+            [with_ibootpatcher=no],
+            [with_ibootpatcher=yes])
+
+AC_ARG_WITH([kernelpatcher],
+            [AS_HELP_STRING([--without-kernelpatcher],
+            [build with kernelpatcher @<:@default=yes@:>@])],
+            [with_kernelpatcher=no],
+            [with_kernelpatcher=yes])
+
+
+AM_CONDITIONAL(WITH_IBOOTPATCHER, test x$with_ibootpatcher == xyes)
+AM_CONDITIONAL(WITH_KERNELPATCHER, test x$with_kernelpatcher == xyes)
 
 
 if test "$debug_build" = true; then
@@ -134,6 +150,9 @@ AC_CHECK_FUNCS([memmem asprintf strtoul_l])
 AC_CONFIG_FILES([Makefile
                  include/Makefile
                  libra1nsn0w.pc
+                 tools/iBootPatcher/Makefile
+                 tools/kernelPatcher/Makefile
+                 tools/Makefile
                  ra1nsn0w/Makefile])
 AC_OUTPUT
 
@@ -144,7 +163,9 @@ Configuration for $PACKAGE-$VERSION:
   install prefix ..........: $prefix
   have openssl ............: $have_openssl
   have img1tool ...........: $have_img1tool
-  have plugin support .....: $plugin_support"
+  have plugin support .....: $plugin_support
+  with iBootPatcher .......: $with_ibootpatcher
+  with kernelPatcher ......: $with_kernelpatcher"
 
 echo "  compiler ................: ${CC}
 

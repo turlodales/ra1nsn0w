@@ -12,8 +12,9 @@
 
 #include <libgeneral/macros.h>
 #include <libgeneral/Utils.hpp>
-#include <libipatcher/libipatcher.hpp>
+#include <libfwkeyfetch/libfwkeyfetch.hpp>
 #include <img4tool/img4tool.hpp>
+#include <img3tool/img3tool.hpp>
 
 extern "C"{
 #include <libfragmentzip/libfragmentzip.h>
@@ -76,52 +77,25 @@ char *im4mFormShshFile(const char *shshfile, size_t *outSize, char **generator){
 }
 
 void cmd_help(){
+    printf(
+           "\n"
+           "Usage: ra1nsn0w [OPTIONS] [IPSW]\n" \
+           "Multipurpose tool for launching custom bootchain\n" \
+           "\n"
+    );
     const char *helpScreen = ra1nsn0w::getCmdHelpString();
     printf("%s",helpScreen);
-}
-
-void exportPatchesToJson(std::map<uint32_t,std::vector<patchfinder::patch>> patches, const char *outfilePath){
-    plist_t p_patches = NULL;
-    char *json = NULL;
-    cleanup([&]{
-        safeFree(json);
-        safeFreeCustom(p_patches, plist_free);
-    });
-    uint32_t jsonSize = 0;
-    p_patches = plist_new_dict();
-    for (auto cp : patches) {
-        plist_t p_component = NULL;
-        cleanup([&]{
-            safeFreeCustom(p_component, plist_free);
-        });
-        char componentName[8] = {};
-        memcpy(componentName, &cp.first, 4);
-        p_component = plist_new_dict();
-
-        for (auto p : cp.second) {
-            char location[0x20] = {};
-            char curbyte[8] = {};
-            std::string patch;
-            snprintf(location, sizeof(location), "0x%016llx",p._location);
-            for (int i=0; i<p._patchSize; i++) {
-                snprintf(curbyte, sizeof(curbyte), "%02x",((unsigned char*)p._patch)[i]);
-                patch += curbyte;
-            }
-            plist_dict_set_item(p_component, location, plist_new_string(patch.c_str()));
-        }
-        plist_dict_set_item(p_patches, componentName, p_component);p_component = NULL;
-    }
-    plist_to_json(p_patches, &json, &jsonSize, 1);
-    tihmstar::writeFile(outfilePath, json, jsonSize);
+    const char *helpScreenPlugins = ra1nsn0w::getCmdHelpStringPlugins();
+    printf("%s",helpScreenPlugins);
 }
 
 MAINFUNCTION
 int main_r(int argc, const char * argv[]) {
     info("%s",VERSION_STRING);
     info("%s",img4tool::version());
+    info("%s",img3tool::version());
     info("%s",fragmentzip_version());
-    info("%s",libipatcher::version());
-    retassure(libipatcher::has64bitSupport(), "This tool needs libipatcher compiled with 64bit support!");
+    info("%s",libfwkeyfetch::version());
 #ifdef WITH_PLUGIN_SUPPORT
     info("Plugin support: YES");
 #else
@@ -139,7 +113,7 @@ int main_r(int argc, const char * argv[]) {
     int optindex = 0;
     int opt = 0;
     
-    libipatcher::pwnBundle bundle;
+    libfwkeyfetch::pwnBundle bundle;
     std::string ipswUrl;
 
     const char *exportPatchesPath = NULL;
@@ -190,10 +164,20 @@ int main_r(int argc, const char * argv[]) {
                 
                 if (curopt == "dry-run") {
                     dryRunDevice = optarg;
-                }else if (curopt == "dry-out") {
+                } else if (curopt == "dry-out") {
                     dryRunOutPath = optarg;
-                }else if (curopt == "export-patches") {
+                } else if (curopt == "export-patches") {
                     exportPatchesPath = optarg;
+                } else if (curopt == "keys-zip") {
+                    if (strncmp(optarg, "http", 4) != 0) {
+                        //local path?
+                        if (!tihmstar::fileExists(optarg)) {
+                            error("Unable to locate key zipfile at '%s'\n", optarg);
+                            return -6;
+                        }
+                        cfg.customKeysZipUrl = "file://";
+                    }
+                    cfg.customKeysZipUrl += optarg;
                 } else if (!ra1nsn0w::parseArgument(cfg, curopt, optarg)) {
                     error("Unknown longopt '%s'",curopt.c_str());
                     return -5;
@@ -275,9 +259,9 @@ int main_r(int argc, const char * argv[]) {
     }else {
         printf("No IPSW specified, getting URL to ipsw by buildid\n");
         try {
-            bundle = libipatcher::getPwnBundleForDevice(model, buildid, device.getDeviceCPID());
+            bundle = libfwkeyfetch::getPwnBundleForDevice(model, buildid, device.getDeviceCPID());
         } catch (tihmstar::exception &e) {
-            printf("libipatcher::getPwnBundleForDevice failed with error:\n");
+            printf("libfwkeyfetch::getPwnBundleForDevice failed with error:\n");
             e.dump();
             reterror("Failed to get firmware url. Please download ipsw and manually specify path");
         }
